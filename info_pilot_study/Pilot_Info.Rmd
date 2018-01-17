@@ -1,0 +1,47 @@
+---
+title: "Pilot Study: Post Undergrad Info Jobs"
+output: html_document
+---
+
+# How can we increase the rate of employment for Informatics students at UW?
+The goal of this research question is to use data including and relevant to rate of employment for INFO students in order to better understand what methods (career fairs, LinkedIn, info sessions, etc.) are most effective at driving employment. The choices informed by this research will encompass the type and frequency of events the iSchool hosts. Our findings could also help current iSchool students decide which of these job search methods they should invest the majority of their time and effort in preparing for and attending.
+
+```{r, include=FALSE}
+#install any missing dependencies
+#install.packages("dplyr")
+#install.packages("plotly")
+
+#import libraries
+library("dplyr")
+library("plotly")
+
+#set working directory
+#setwd("~/University of Washington/Senior/Fall/Info 370/project-es3/parking_pilot_study")
+```
+
+## Uncertainties & Assumptions
+* The rate of employment for UW Informatics students is low
+* Inability to find employment post undergrad is a problem for UW Informatics students (maybe they all want to go to grad school)
+* iSchool staff aren't already doing data driven event organization
+* iSchool students struggle with preparing for all job search methods
+* Are there any job search methods we're missing?
+
+## Pilot Study
+Our group surveyed a total of 24 Informatics students (13 current students and 11 alumni) using Google Forms to find out more about their job search experiences. The participants self selected into the study by clicking on the link posted to the UW Informatics Facebook group. If we continue to pursue this research question, we would want to collect data from a more robust sample. However, this smaller sample can still provide some insight about our initial uncertainties.
+
+## Conclusions
+Our data analysis so far focused on the stress experienced by students searching for jobs. We wanted to confirm that a significant number of students do find job searching to be a stressful process before pursuing this topic. We found that 33.3% of students found job searching to be very stressful, 45.8% thought it was somewhat stressful, and only 20.8% thought that it was not stressful. In light of these findings, our research question does merit additional study.  
+
+```{r, message=FALSE, warning=FALSE}
+#import data
+stress_data <- read.csv("stress.csv")
+
+#clean data
+stress_data <- as.data.frame.table(table(stress_data))
+
+#plot
+plot_ly(stress_data, labels = ~stress_data, values = ~Freq, type = 'pie') %>%
+  layout(title = 'Informatics students and alumni job search stress',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+```

@@ -1,0 +1,73 @@
+---
+title: "Pilot Study: Parking in Downtown Seattle"
+output: html_notebook
+---
+
+# How can we reduce the cost of parking in Seattle?
+Anyone who has driven a car to downtown Seattle for an event knows how expensive parking is. Often times, we waste time, effort, money, and gas searching for a spot. Thus, the goal of this research question is to find balance between the profitability desired by businesses and affordability desired by citizens. The hope is to use marketing changes to increase parking company profits, increase the amount of available, legal parking spaces to lower the number of parking tickets, and increase the public's overall satisfaction with the cost of parking.
+
+```{r, include=FALSE}
+#install any missing dependencies
+#install.packages("dplyr")
+#install.packages("ggplot2")
+
+#import libraries
+library("dplyr")
+library("ggplot2")
+
+#set working directory
+#setwd("~/University of Washington/Senior/Fall/Info 370/project-es3/parking_pilot_study")
+```
+
+## Uncertainties & Assumptions
+After careful review of the chosen research question, we realized that we made a number of key assumptions as a group including:
+
+* The City of Seattle has a vested interest in reducing the number of parking tickets being issued. As a relatively harmless (yet profitable) crime, there's no guarantee that the City of Seattle is invested in lowering the number of parking infractions.
+* There is a profitable price that would satisfy citizens. Parking companies need to profit to stay open and it's possible even the lower profitable price a company could charge would still seem too expensive to a consumer.
+* Parking companies will cooperate. Asking any business to lower their rates will not be easy without proper incentives.
+
+We also had some uncertainties surrounding the outcomes of successfully lowering parking rates. Some questions we had include:
+
+* Will lowering the cost of parking encourage people to drive more and thereby negatively impact the environment?
+* Will lowering the cost of parking result in an increase in congestion? An increase in congestion might reduce the amount of parking spaces and thereby defeat the purpose of the study.
+
+## Pilot Study
+Our group used [Seattle Department of Transportation (SDOT) flow data and maps](https://www.seattle.gov/transportation/tfdmaps.htm), [annual parking reports](http://www.seattle.gov/transportation/parking/reports.htm), and [neighborhood maps](http://www.seattle.gov/transportation/parking/reports.htm). We looked at the data from 2012-2015 and focused on four blocks encompassed by Pike street, Union street, 10th avenue, and 12th avenue. After aggregating the necessary information, this is the data set we ended up with.
+
+```{r, echo=FALSE}
+#import data
+data <- read.csv("Parking_Pilot_Study_Data.csv")
+
+#make the column names readable
+colnames(data) <- c('year', 'type', 'occupancy', 'price', 'curb', 'congestion')
+
+data
+```
+
+Parking occupancy describes the average peak 3 hours of each blockface between 8AM-7PM for weekdays. The exceptions being 2012 and 2013 where data was only collected between 8AM-3PM.
+
+We identified curbs with an original key. It can be decomposed as follows:
+
+* Number: The avenue on which the curb lies
+* Letters immediately left/right of number: The streets the curb is located between
+* Last letter: Which side of the street the curb is on
+** U: the side of the street closer to the smaller number street
+** D: the side of the street closer to the larger number street
+
+## Conclusions
+Our group decided it was most pressing - as well as most realistic given the time frame - to address the question of parking cost vs. congestion. We constructed the following chart in an attempt to answer it.
+
+```{r}
+# clean the data
+data <- data %>%
+  filter(!is.na(occupancy)) %>%
+  mutate(occupancy = occupancy * 100)
+
+# plot
+ggplot(data = data) +
+  geom_point(mapping = aes(x = data$year, y = (data$occupancy), alpha = data$congestion), color = 'blue') +
+  labs(title = "Relationship between Congestion and Parking Occupancy",
+       x = "Year", y = "Parking Occupancy (%)", alpha = "Average weekday traffic")
+```
+
+In 2012, there seems to be a heavy amount of traffic regardless of parking occupancy except when the parking occupancy exceeds 100% at which point there is a much lighter amount of traffic. From 2013-2015 however, it would seem that there is a heavier amount of traffic when there is a higher parking occupancy. In 2014-2015 especially, there seems to be a heavy amount of traffic when there's over 100% parking occupancy. Therefore, it's reasonable for us to assume that the average weekday traffic and parking occupancy are not correlated accross the four years we investigated. Assuming that lowering the cost of parking successfully decreases parking occupancy, we can infer that it will not lead to an increase in congestion.

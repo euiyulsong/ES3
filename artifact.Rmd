@@ -1,0 +1,220 @@
+---
+title: "Maximizing Efficiency in Under- and Recent Graduate Job Searching"
+author: "ES3"
+date: "December 9, 2017"
+output: html_document
+---
+
+```{r, include=FALSE}
+# install dependencies
+#install.packages("dplyr")
+#install.packages("ggplot2")
+#install.packages("rpart")
+#install.packages("rattle")
+#install.packages("glmnet")
+#install.packages("tidyr")
+
+# import libraries
+library(dplyr)
+library(ggplot2)
+library(rpart)
+library(rattle)
+library(glmnet)
+library(tidyr)
+
+# set working directory
+#setwd("~/University of Washington/Senior/Fall/Info 370/project-es3")
+
+# load data
+data <- read.csv("data/clean_num.csv")
+pilot <- read.csv("data/stress_pilot.csv")
+
+```
+
+# Decision Context
+As college students nearing the end of our undergraduate careers, all four members of this group understand the pressure that comes with finding entry-level employment. And while a wide variety of resources are available to students looking for jobs, a pilot study we conducted on 33 self-selected participants from the University of Washington Information School showed that 78.8% still found the job search process to be stressful to some degree.
+
+```{r, echo=FALSE}
+# rename column headers
+colnames(pilot) <- c("class", "stress")
+
+# order class sequentially
+pilot$class <- factor(pilot$class, levels=c("Alumni", "5th year", "Senior", "Junior", "Sophomore"))
+
+# plot stress data
+ggplot(data = pilot) +
+  geom_bar(mapping = aes(x = stress), width = 0.5) +
+  labs(title = "Job Search Stress", x = "Stress level", y = "Number of students") +
+  coord_flip(ylim = c(0, nrow(pilot)))
+
+```
+
+Our goal was therefore to illuminate the effectiveness of different job search resources so that students can allocate their time most productively. Our model focuses on making recommendations that minimize excess effort and time spent job searching. These include recommendations about what skills you should develop in the long term and what resources you should use in the short term.
+
+# Key Findings
+Recommendations to guide immediate actions:  
+
+* Avoid relying too heavily on online resources like LinkedIn, online job postings, etc.
+* After applying to a lot of online postings (more than around 25), most people spend less time on cover letters and resumes. It's better to invest more effort into fewer applications. 
+* If you are heavily dependent on online resources, solicit your friends/family/professors/etc. to see if anyone has connections to your organizations of interest. Leverage the ones you find.
+* You have to use resources a lot to get offers from them. Doing something a little bit is unlikely to be a good use of time. Instead, pick a few resources to use and get really good at them.
+
+Recommendations to guide long term planning:
+
+* A high cumulative GPA and internship experience both correlate with shorter job search times. If you've focused more on one of these areas than the other, you're not doomed. If you haven't focused on either, you should aim to improve in at least one of the two.   
+* Push yourself to work on developing interpersonal skills. People who said they were good at networking and interviewing tended to have the shortest job searches compared to people who were good at writing cover letters/resumes or were knowledgeable about their area of study.
+
+# Model
+Our original model approached our question dividing respondents into two groups: those who accepted a job offer in under 3 months of searching, and those who did not. We chose the 3 month cutoff because about half of respondents fell on one side and half on the other.
+
+```{r, echo=F}
+og.model.data <- data %>%
+  # reformat graduation data as date
+  mutate(graduation_date = as.Date(graduation_date, "%m/%d/%Y")) %>%
+  
+  # split job type into 3 binary columns (1 = internship, 2 = part time, 3 = full time)
+  mutate(fulltime = ifelse(Job_type == 3, 1, 0)) %>%
+  mutate(parttime = ifelse(Job_type == 2, 1, 0)) %>%
+  mutate(internship = ifelse(Job_type == 1, 1, 0)) %>%
+  select(-Job_type) %>%
+  
+  # convert months to classification variable (0 = >3mo., 1 = <3mo.)
+  mutate(Months = ifelse(Months <= 3, 1, 0)) %>%
+  
+  # split class standing into 5 binary columns
+  mutate(freshman = ifelse(class_standing_ == 1, 1, 0)) %>%
+  mutate(sophomore = ifelse(class_standing_ == 2, 1, 0)) %>%
+  mutate(junior = ifelse(class_standing_ == 3, 1, 0)) %>%
+  mutate(senior = ifelse(class_standing_ == 4, 1, 0)) %>%
+  mutate(fifth.year = ifelse(class_standing_ == 5, 1, 0)) %>%
+  mutate(alumni = ifelse(class_standing_ == 6, 1, 0)) %>%
+  select(-class_standing_) %>%
+  
+  # remove test data
+  # (filter out people just beginning job search (no job, searching for < 3 mo.))
+  filter((has_position == 0 & Months == 0) | (None_of_these == 1 & Months == 0) | has_position == 1 | None_of_these == 0) %>%
+  
+  # remove factors that we don't want to predict on
+  select(-None_of_these, -has_position)
+
+# create decision tree
+og.tree <- rpart(Months ~ .,
+                 data = og.model.data, method = "class",
+                 control=rpart.control(minbucket=1))
+
+# plot tree
+fancyRpartPlot(og.tree, sub = "")
+
+```
+
+Unfortunately, this model didn't particularly make very much sense. For instance, it suggests if you apply to fewer online job postings but use LinkedIn more, you are more likely to accept a job offer in under 3 months. But logically we expect both factors to be a part of the same strategy - perhaps online-based one - and therefore to be directly as opposed to inversely correlated. In the process of meeting with our mentor, it was brought to our attention that the model might be making confusing suggestions becuase it was built on data from individuals who could have pursued multiple strategies in their job search.
+
+Our solution was to analyze only individuals who got offers in the first couple months of their job search under the assumption they would have only had the chance to utilize one strategy. We looked for a natural cutoff in the data but found none so four months was chosen arbitrarily. While this method prevents us from analyzing strategies that did not work it allows us to definitively point to the strategies that did work.
+
+```{r echo = F}
+revised.model.data <- data %>%
+  # reformat graduation data as date
+  mutate(graduation_date = as.Date(graduation_date, "%m/%d/%Y")) %>%
+  
+  # split job type into 3 binary columns (1 = internship, 2 = part time, 3 = full time)
+  mutate(fulltime = ifelse(Job_type == 3, 1, 0)) %>%
+  mutate(parttime = ifelse(Job_type == 2, 1, 0)) %>%
+  mutate(internship = ifelse(Job_type == 1, 1, 0)) %>%
+  select(-Job_type) %>%
+  
+  # split class standing into 5 binary columns
+  mutate(freshman = ifelse(class_standing_ == 1, 1, 0)) %>%
+  mutate(sophomore = ifelse(class_standing_ == 2, 1, 0)) %>%
+  mutate(junior = ifelse(class_standing_ == 3, 1, 0)) %>%
+  mutate(senior = ifelse(class_standing_ == 4, 1, 0)) %>%
+  mutate(fifth.year = ifelse(class_standing_ == 5, 1, 0)) %>%
+  mutate(alumni = ifelse(class_standing_ == 6, 1, 0)) %>%
+  select(-class_standing_) %>%
+  
+  # get subset where job found in <= 4 months
+  filter(Months <= 4) %>%
+  
+  # remove test data
+  # (filter out people just beginning job search (no job, searching for < 3 mo.))
+  filter((has_position == 0 & Months == 0) | (None_of_these == 1 & Months == 0) | has_position == 1 | None_of_these == 0) %>%
+  
+  # remove factors that we don't want to predict on
+  select(-None_of_these, -has_position)
+
+# create decision tree
+revised.tree <- rpart(Months ~ ., data = revised.model.data, method = "anova", control=rpart.control(minbucket=2))
+
+# plot decision tree
+fancyRpartPlot(revised.tree, sub = "")
+
+```
+
+While not every aspect of the revised model makes perfect sense, the model's issues - unlike those in the original model - have more to do with our dataset's small sample size than with the model's design itself. 
+
+## Supplemental analysis
+A high cumulative GPA and internship experience both correlate with shorter job search times. If you've focused more on one of these areas than the other, you're not doomed. If you haven't focused on either, you should aim to improve in at least one of the two. The correlation is not strong; there are a number of students who find jobs quickly who have a low GPA or no internship experience. However, there is a general pattern that these are two factors that can decrease your job search time.
+
+```{R echo = F}
+#GPA vs search time
+ggplot(data, aes(x = cumulative_GPA, y = Months)) +
+  geom_count(alpha = .5) + 
+  scale_size(range = c(1,3), breaks = c(1,2,3,4), guide = guide_legend(title ="Number of Students", nrow = 1)) +
+  geom_smooth(method=lm) + 
+  labs(title = "Job Search Time vs Cumulative GPA", x = "Cumulative GPA", y = "Job Search Time (Months)")
+
+#internships vs search time
+ggplot(data, aes(x = internships, y = Months)) +
+  geom_count(alpha = .5) + 
+  scale_size(range = c(1,4), breaks = c(1:10), guide = guide_legend(title ="Number of Students", ncol = 2)) +
+  geom_smooth(method=lm) + 
+  labs(title = "Job Search Time vs Number of Internships", x = "Number of Internships", y = "Job Search Time (Months)")
+
+```
+
+## Lasso Regression
+For the multi-feature problem in linear regression, we used L1 regulation Lasso to model mean squared error.
+
+```{r echo = F, warning= F, message = F}
+month <- data[, "Months"]
+
+# Create dataframe 
+df = data.frame(data$Months, data$resume_hrs, data$cover_letter_hours, data$self.confidence, data$online_job_postings, data$no_career_fairs, data$cumulative_GPA, data$in.major_GPA, data$internships)
+
+x <- as.matrix(df[-1]) # Removes month
+y <- as.matrix(df[, 1]) # Only month
+
+# Plot Mean Squared Error Plot and Lasso path using glmnet
+cvfit <- cv.glmnet(x, y,parallel=TRUE, standardize=TRUE, alpha=1, nlambda=1000)
+
+plot(cvfit)
+
+```
+
+The x-axis is log(Lambda) and Lambda is an input to the model fitting process. The value on the top is the number of coefficients for the linear model that are not zero. In our model, the lasso removes more and more coefficients by setting them to zero as lambda incresases. Thus, the model is telling that less number of factors makes better result for success in employment.
+
+## Coefficient of Lasso Regression
+We analyzed the coefficient of Lasso model in order to observe the pattern.
+
+```{r echo = F}
+fit <- glmnet(x, y, standardize=TRUE, alpha=1, nlambda=1000)
+head(coef(fit)) [,6:10]
+```
+
+The coefficient of lasso model shows increasing pattern of a number of career fairs student attended, despite decreasing pattern of cumulative GPA and number of internships. The number of career fairs, cumulative gpa, and internship are major factors that impact job searching. Maintaining a high cumulative GPA and gaining internship experience are related to shorter job searches. 
+
+## Scatter Plot
+We plotted the observation from the coefficeint of lasso model.
+
+```{r echo = F}
+#internships vs search time
+ggplot(data, aes(x = no_career_fairs, y = Months)) +
+  geom_count(alpha = .5) + 
+  scale_size(range = c(1,4), breaks = c(1:10), guide = guide_legend(title ="Number of Students", ncol = 2)) +
+  geom_smooth(method=lm) + 
+  labs(title = "Job Search Time vs Career Fairs Attended", x = "Number of Career Fairs", y = "Job Search Time (Months)")
+```
+
+The graph tells us that more attendance at career fairs results in a higher number of months to find employment. This most likely just means that people who are initially unsuccessful at finding a job will continue going to career fairs, not that attending more career fairs actually makes the job search take longer. 
+
+# Limitations
+This study surveyed 53 University of Washington undergraduate students and recent graduates. Because of the small sample size, it is possible that the correlations we have found will not persist with a larger sample size. Our analysis describes this sample only. Additionally, we acknowledge that there are other factors that can influence job search time, such as available positions and the pool of other candidates. This is a tool to help make decisions, not a definite formula that will guarantee immediate job offers. 

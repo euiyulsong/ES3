@@ -1,0 +1,150 @@
+---
+title: "ES3"
+author: "EuiYul Song"
+date: "11/27/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+install.packages("dplyr")
+library(dplyr)
+library(ggplot2)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+**Correlation between Month and Types of Job**
+```{r cars}
+#setwd("/Users/song-euiyul//desktop")
+data <- read.csv("../data/370_clean_suk.csv")
+View(data)
+colnames(data) <- c("timestamp", "job_type", "position_offer", "month", "career_fair", "job_posting","iCareer", "employer_visit", "linkedin", "third_party", "husky_jobs", "career_workshop", "friends_family", "career_advisor", "platform_used", "ifelse_linkedin", "ifelse_employer_visit", "ifelse_husky_jobs", "ifelse_friends_family", "ifelse_iCareer", "ifelse_employer_website", "ifelse_career_fair", "ifelse_indeed", "ifelse_none_of_these", "num_application", "num_career_fair", "hour_resume", "hour_coverletter", "evaluate_opportunity", "evaluate_writing_resume_coverletter", "evaluate_other_students", "evaluate_networking", "evaluate_interview", "rate_confidence", "num_internship", "cumulative_gpa", "major_gpa", "class_standing", "major", "graduation_date", "gender", "physical_apprearance_gender", "race_ethnicity", "asian", "white", "middle_eastern", "pacific_islander", "black", "native_american", "email")
+
+View(data)
+
+job_type = data$job_type
+month = data$month
+
+job_type <- job_type[!is.na(job_type)]
+month <- month[!is.na(month)]
+
+print(job_type)
+print(month)
+
+output <- ggplot(data = data) +
+  geom_count(mapping = aes(x = job_type, y = month), alpha = 1/3) + scale_size_area(max_size = 10) + 
+  labs(title = "Plot of Type by Month", x = "Types of Job", y = "Month Job Searching Took", size = "Number of People")
+# + geom_point(data = filter(data, rank(size) > 5), colour = "red")
+
+output
+```
+**Why does spending more time on your cover letter result in a lower chance of finding a job in under 3 months?**
+```{r}
+cover_letter <- data$hour_coverletter
+
+output <- ggplot(data = data) +
+  geom_count(mapping = aes(x = month, y = cover_letter), alpha = 1/3) + scale_size_area(max_size = 10) + 
+  labs(title = "Plot of Time Spent on Cover Letter by Month", x = "Month", y = "Time Spent on Cover Letter", size = "Number of People")
+output
+
+```
+
+
+**Lasso Regression**
+```{r}
+# Load glmnet and example data
+library(glmnet)
+require(glmnet)
+head(data)
+summary(data)
+
+v0 <- "month"
+v1 <- "hour_resume"
+v2 <- "hour_coverletter"
+v3 <- "rate_confidence"
+v4 <- "num_application"
+v5 <- "num_career_fair"
+v6 <- "cumulative_gpa"
+v7 <- "major_gpa" 
+v11 <- "num_internship"
+
+# Examine the correlations among month, hour spend on resume, hour spend on cover letter
+round(cor(data[, c(v0,v1,v2,v3,v4,v5,v7,v6,v11)]), 2)
+
+# The units of measurement for these two independent variables are quite different, so to make comparisons more fair, you should standardize them. There’s less of a need to standardize the dependent variable
+standardize <- function(x) {(x-mean(x))/sd(x)}
+z11 <- standardize(data[, v11])
+z0 <- standardize(data[, v0])
+z1 <- standardize(data[, v1])
+z2 <- standardize(data[, v2])
+z3 <- standardize(data[, v3])
+z4 <- standardize(data[, v4])
+z5 <- standardize(data[, v5])
+z6 <- standardize(data[, v6])
+z7 <- standardize(data[, v7])
+lstsq <- lm(z0~z1+z2-1)
+lstsq_beta <- coef(lstsq)
+
+# Tranditional linear regression approach: least squares regression, because it minimizes the sum of squared deviations of the residual
+# Compute the residual sum of squared deviations (rss) for a range of possible regression coefficients
+n_lstsq <- 100
+s <- seq(-1, 1, length=n_lstsq)
+rss_lstsq <- matrix(NA, nrow=n_lstsq, ncol=n_lstsq)
+for (i in 1:n_lstsq) {
+  for (j in 1:n_lstsq) {
+    rss_lstsq[i, j] <- sum((z0-s[i]*z1-s[j]*z2)^2)
+  }
+}
+persp(s, s, rss_lstsq, xlab="beta1", ylab="beta2", zlab="rss_lstsq")
+
+
+# Lasso regression model is an alternative to the classic least squares estimate that avoids many of the problems with overfitting when you have a large number of independent variables.
+find_closest <- function(x, target) {
+  d <- abs(x-target)
+  return(which(d==min(d))[1])
+}
+
+draw_axes <- function() {
+  k2 <- seq(-1, 1, length=5)
+  par(mar=c(4.6, 4.6, 0.6, 0.6), xaxs="i", yaxs="i")
+  plot(1.02*range(s), 1.02*range(s), type="n", xlab="beta1", ylab="beta2", axes=FALSE)
+  axis(side=1, pos=0, col="gray", at=k2, labels=rep(" ", length(k2)))
+  axis(side=2, pos=0, col="gray", at=k2, labels=rep(" ", length(k2)))
+  text(k2[-3], -0.05, k2[-3], cex=0.5, col="black")
+  text(-0.05, k2[-3], k2[-3], cex=0.5, col="black")
+}
+k1 <- c(1, 1.1, 1.2, 1.5, 2, 2.5, 3:9)
+k1 <- c(0.1*k1, k1, 10*k1, 100*k1, 1000*k1)
+k1 <- k1[k1>min(rss_lstsq)]
+lasso <- glmnet(cbind(z1, z2, z3, z4, z5, z6, z7), z0, alpha=1, intercept=FALSE, nlambda=1000)
+cvfit <- cv.glmnet(cbind(z1, z2, z3, z4, z5, z6, z7), z0, alpha=1, intercept=FALSE, nlambda=1000)
+library(plotmo)
+
+plot(lasso, label = TRUE)
+#plot_glmnet(lasso,label=TRUE,s=cvfit,col=cols)
+#m_lasso <- dim(lasso$beta)[2]
+#rss_lasso <- rep(NA,m_lasso)
+#for (i in 1:m_lasso) {
+#  rss_lasso[i] <- sum((z0 - lasso$beta[1, i]*z1 -lasso$beta[2, i]*z2)^2)
+#}
+#r1 <- find_closest(rss_lasso, k1[1])
+#r2 <- find_closest(rss_lasso, k1[2])
+#r3 <- find_closest(rss_lasso, k1[3])
+#draw_axes()
+#contour(s, s, matrix(rss_lstsq,nrow=n_lstsq), levels=k1, add=TRUE, col="gray")
+#contour(s, s, matrix(rss_lstsq,nrow=n_lstsq), levels=k1[1], add=TRUE, col="black")
+#d <- abs(lasso$beta[1, r1])+abs(lasso$beta[2, r1])
+#segments( d, 0, 0, d)
+#segments( 0, d,-d, 0)
+#segments(-d, 0, 0,-d)
+#segments( 0,-d, d, 0)
+#text(lstsq_beta[1], lstsq_beta[2], "X", cex=0.5)
+#arrows(lstsq_beta[1], lstsq_beta[2], lasso$beta[1, r1], lasso$beta[2, r1], len=0.05)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

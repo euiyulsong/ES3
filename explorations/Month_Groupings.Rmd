@@ -1,0 +1,52 @@
+---
+Author: Sukhman Tiwana
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(ggplot2)
+library(dplyr)
+data <- read.csv("../data/clean_num.csv")
+LessFive <- filter(data, Months < 3)
+
+for (i in 1:ncol(LessFive)){
+  print(ggplot(LessFive, aes(x = LessFive[[i]], y = LessFive$Months)) +
+    geom_smooth(method=lm) +
+    labs(x = colnames(LessFive)[i]))
+}
+```
+
+```{r}
+MoreFive <- filter(data, Months < 6 & Months > 3)
+
+for (i in 1:ncol(MoreFive)){
+  print(ggplot(MoreFive, aes(x = MoreFive[[i]], y = MoreFive$Months)) +
+    geom_smooth(method=lm) +
+    labs(x = colnames(MoreFive)[i]))
+}
+```
+
+```{r}
+MoreFive <- filter(data, Months < 9 & Months > 6)
+
+for (i in 1:ncol(MoreFive)){
+  print(ggplot(MoreFive, aes(x = MoreFive[[i]], y = MoreFive$Months)) +
+    geom_smooth(method=lm) +
+    labs(x = colnames(MoreFive)[i]))
+}
+```
+
+```{r}
+MoreFive <- filter(data, Months < 13 & Months > 9)
+
+for (i in 1:ncol(MoreFive)){
+  print(ggplot(MoreFive, aes(x = MoreFive[[i]], y = MoreFive$Months)) +
+    geom_smooth(method=lm) +
+    labs(x = colnames(MoreFive)[i]))
+}
+```
